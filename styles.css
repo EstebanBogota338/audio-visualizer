@@ -1,0 +1,50 @@
+
+/*
+==================================================
+AUDIO VISUALIZER STYLES
+
+Aquí van:
+- layout
+- tema oscuro
+- glow/neón
+- responsive
+- animaciones visuales
+- los knobs (perillas para controlar el audio)
+
+Evitar:
+- estilos innecesariamente complejos
+- !important salvo casos extremos
+==================================================
+*/
+
+/*Usar colores como variables*/
+
+:root {
+  --bg-color: #0a0a0a;
+  --primary-color: #00ffee;
+  --secondary-color: #ff00ff;
+  --text-color: #ffffff;
+}
+
+/*Separadores útiles, no obligatorios:*/
+
+
+/* ===== RESET / BASE ===== */
+
+/* ===== LAYOUT GENERAL ===== */
+
+/* ===== HEADER ===== */
+
+/* ===== CONTROLES ===== */
+
+/* ===== BOTONES ===== */
+
+/* ===== SLIDERS ===== */
+
+/* ===== CANVAS VISUALIZER ===== */
+
+/* ===== EFECTOS NEÓN / GLOW ===== */
+
+/* ===== RESPONSIVE ===== */
+
+
