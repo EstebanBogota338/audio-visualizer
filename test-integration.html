@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio + FFT Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            gap: 16px;
+        }
+
+        canvas {
+            display: block;
+            width: 800px;
+            height: 300px;
+            border: 1px solid #222;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid #00f5ff;
+            color: #00f5ff;
+            padding: 10px 24px;
+            font-size: 13px;
+            letter-spacing: 2px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #00f5ff; color: #0a0a0f; }
+        button:disabled { opacity: 0.4; cursor: default; }
+
+        input[type="file"] {
+            color: #888;
+            font-size: 13px;
+        }
+
+        audio { display: none; }
+    </style>
+</head>
+<body>
+
+    <canvas id="visualizer"></canvas>
+
+    <div class="controls">
+        <button id="startBtn">START MIC</button>
+        <input type="file" id="audioFile" accept="audio/*">
+    </div>
+
+    <audio id="audioPlayer"></audio>
+
+    <script type="module" src="./test-integration.js"></script>
+
+</body>
+</html>

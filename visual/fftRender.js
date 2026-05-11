@@ -1,215 +1,160 @@
-/*
-==================================================
-FFT RENDERER
-
-Responsable de:
-- dibujar en Canvas
-- renderizar barras FFT (~60 FPS)
-- animación con requestAnimationFrame
-- consumir datos del FFTAnalyzer
-
-Este módulo NO procesa audio ni FFT.
-Este módulo NO maneja AudioContext ni nodos.
-==================================================
-*/
-
 class FFTRenderer {
 
     constructor(canvas) {
 
-        // ==================================================
-        // CANVAS
-        // ==================================================
-
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
-        // ==================================================
-        // ESTADO DEL RENDER
-        // ==================================================
-
-        this.isRunning = false;
-        this.animationId = null;
-
-        // Referencia al analyzer (se inyecta desde afuera)
         this.analyzer = null;
 
-        // ==================================================
-        // CONFIG VISUAL
-        // ==================================================
+        this.isRunning = false;
+        this.id = null;
 
         this.config = {
 
-            // cantidad de barras en pantalla
+            width: 800,
+            height: 300,
+
             barCount: 64,
-
-            // separación entre barras
             barGap: 2,
-
-            // borde redondeado
             barRadius: 3,
 
-            // suavizado visual (0 = nada, 1 = congelado)
-            smoothing: 0.75,
+            smoothing: 0.55,
 
-            // colores por zonas del espectro
             colors: {
                 bass: "#ff2d55",
                 mid: "#00f5ff",
-                treble: "#b8ff3c",
+                treble: "#b8ff3c"
             },
 
-            // glow visual
-            glowBlur: 18,
-
-            // fondo del canvas
             background: "#0a0a0f",
+            glow: 14
         };
 
-        // ==================================================
-        // BUFFER DE SMOOTHING
-        // ==================================================
+        this.smoothed = new Float32Array(this.config.barCount);
 
-        // guarda valores del frame anterior para suavizar movimiento
-        this.smoothedBars = new Float32Array(this.config.barCount);
+        // 🔥 detección dinámica de fuente
+        this.energyHistory = [];
+        this.isMic = false;
+
+        this.canvas.width = this.config.width;
+        this.canvas.height = this.config.height;
     }
-
-    // ==================================================
-    // START RENDER
-    // ==================================================
 
     start(analyzer) {
 
-        if (this.isRunning) return;
-
-        // inyectamos el analyzer desde afuera (AudioEngine/App)
         this.analyzer = analyzer;
-
         this.isRunning = true;
 
-        this._loop();
-
-        console.log("FFTRenderer iniciado.");
+        this.loop();
     }
-
-    // ==================================================
-    // STOP RENDER
-    // ==================================================
 
     stop() {
-
-        if (!this.isRunning) return;
-
         this.isRunning = false;
-
-        cancelAnimationFrame(this.animationId);
-
-        this.animationId = null;
-
-        console.log("FFTRenderer detenido.");
+        cancelAnimationFrame(this.id);
     }
 
-    // ==================================================
-    // LOOP PRINCIPAL (~60 FPS)
-    // ==================================================
-
-    _loop() {
+    loop() {
 
         if (!this.isRunning) return;
 
-        this._draw();
+        this.draw();
 
-        this.animationId = requestAnimationFrame(() => this._loop());
+        this.id = requestAnimationFrame(() => this.loop());
     }
 
-    // ==================================================
-    // DRAW FRAME
-    // ==================================================
+    detectSource(avgEnergy) {
 
-    _draw() {
+        // 🔥 historial corto para estabilidad
+        this.energyHistory.push(avgEnergy);
+        if (this.energyHistory.length > 30) {
+            this.energyHistory.shift();
+        }
 
-        const { canvas, ctx, config, smoothedBars } = this;
+        const mean =
+            this.energyHistory.reduce((a, b) => a + b, 0) /
+            this.energyHistory.length;
 
-        // ajusta tamaño del canvas al contenedor
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
+        // 🎤 mic suele tener energía baja/inestable
+        this.isMic = mean < 0.15;
+    }
 
-        const W = canvas.width;
-        const H = canvas.height;
+    draw() {
 
-        // ==================================================
-        // BACKGROUND
-        // ==================================================
+        const ctx = this.ctx;
+        const W = this.config.width;
+        const H = this.config.height;
 
-        ctx.fillStyle = config.background;
+        ctx.fillStyle = this.config.background;
         ctx.fillRect(0, 0, W, H);
 
-        // ==================================================
-        // OBTENER FFT
-        // ==================================================
+        const data = this.analyzer?.getFrequencyData();
+        if (!data) return;
 
-        const rawData = this.analyzer?.getFrequencyData();
+        const count = this.config.barCount;
 
-        if (!rawData) return;
+        const barW =
+            (W - this.config.barGap * (count - 1)) / count;
 
-        // ==================================================
-        // CALCULO DE BARRAS
-        // ==================================================
+        let energySum = 0;
 
-        const barCount = config.barCount;
-        const totalGap = config.barGap * (barCount - 1);
-        const barWidth = (W - totalGap) / barCount;
-        const binStep = Math.floor(rawData.length / barCount);
+        for (let i = 0; i < count; i++) {
 
-        for (let i = 0; i < barCount; i++) {
+            const t = i / count;
 
-            // valor del bin (normalizado 0-1)
-            const raw = (rawData[i * binStep] ?? 0) / 255;
+            const index = Math.floor(
+                Math.pow(t, 1.6) * (data.length - 1)
+            );
 
-            // suavizado frame a frame
-            smoothedBars[i] =
-                smoothedBars[i] * config.smoothing +
-                raw * (1 - config.smoothing);
+            let value = (data[index] ?? 0) / 255;
 
-            const barHeight = smoothedBars[i] * H;
+            energySum += value;
 
-            const x = i * (barWidth + config.barGap);
-            const y = H - barHeight;
+            // smoothing base
+            this.smoothed[i] =
+                this.smoothed[i] * this.config.smoothing +
+                value * (1 - this.config.smoothing);
 
-            // color por zona del espectro
-            const color = this._barColor(i, barCount);
+            let v = this.smoothed[i];
 
-            // glow
-            ctx.shadowBlur = config.glowBlur;
+            // 🔥 AJUSTE AUTOMÁTICO MIC vs FILE
+            if (this.isMic) {
+                v = Math.pow(v, 0.6) * 2.8;
+            }
+
+            v = Math.min(1, v);
+
+            const h = v * H * 0.4;
+
+            const x = i * (barW + this.config.barGap);
+            const y = H - h;
+
+            const color = this.color(i, count);
+
+            ctx.shadowBlur = this.config.glow;
             ctx.shadowColor = color;
 
             ctx.fillStyle = color;
 
-            this._roundRect(ctx, x, y, barWidth, barHeight, config.barRadius);
+            this.round(ctx, x, y, barW, h, this.config.barRadius);
         }
 
-        // reset glow (importante para no contaminar otros dibujos)
         ctx.shadowBlur = 0;
+
+        // 🔥 actualizar tipo de fuente
+        this.detectSource(energySum / count);
     }
 
-    // ==================================================
-    // COLOR POR BANDA (visual, no físico)
-    // ==================================================
+    color(i, total) {
 
-    _barColor(i, total) {
+        const p = i / total;
 
-        const pos = i / total;
-
-        if (pos < 0.33) return this.config.colors.bass;
-        if (pos < 0.66) return this.config.colors.mid;
+        if (p < 0.33) return this.config.colors.bass;
+        if (p < 0.66) return this.config.colors.mid;
         return this.config.colors.treble;
     }
 
-    // ==================================================
-    // RECT REDONDEADO
-    // ==================================================
-
-    _roundRect(ctx, x, y, w, h, r) {
+    round(ctx, x, y, w, h, r) {
 
         if (h <= 0) return;
 
@@ -225,36 +170,6 @@ class FFTRenderer {
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
         ctx.fill();
-    }
-
-    // ==================================================
-    // CONFIG DINÁMICA
-    // ==================================================
-
-    setSmoothing(value) {
-        this.config.smoothing = Math.min(0.99, Math.max(0, value));
-    }
-
-    setBarCount(count) {
-
-        this.config.barCount = count;
-
-        this.smoothedBars = new Float32Array(count);
-    }
-
-    // ==================================================
-    // DESTROY
-    // ==================================================
-
-    destroy() {
-
-        this.stop();
-
-        this.canvas = null;
-        this.ctx = null;
-        this.analyzer = null;
-
-        console.log("FFTRenderer destruido.");
     }
 }
 
