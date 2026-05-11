@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Only Test</title>
+</head>
+
+<body>
+
+    <button id="start">Start Mic</button>
+
+    <script type="module">
+
+        console.log("SCRIPT CARGADO");
+
+        import AudioEngine from "../audioEngine.js";
+
+        console.log("IMPORT OK");
+
+        const audioEngine = new AudioEngine();
+        const startBtn = document.getElementById("start");
+
+        let running = false;
+
+        // =========================
+        // CLICK
+        // =========================
+
+        startBtn.onclick = async () => {
+
+            console.log("CLICK FUNCIONA");
+
+            await audioEngine.start();
+            console.log("ENGINE STARTED");
+
+            await audioEngine.initializeMicrophone();
+            console.log("MIC READY");
+
+            if (!running) {
+                running = true;
+                loop();
+            }
+        };
+
+        // =========================
+        // LOOP DEBUG FFT
+        // =========================
+
+        function loop() {
+
+            if (!running) return;
+
+            const data = audioEngine.getFrequencyData();
+
+            console.log("FFT[0]:", data ? data[0] : null);
+
+            requestAnimationFrame(loop);
+        }
+
+    </script>
+
+</body>
+</html>
