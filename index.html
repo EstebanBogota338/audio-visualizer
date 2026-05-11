@@ -16,27 +16,70 @@ Evitar:
 -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles.css">
-    <title>Document</title>
+    <link rel="shortcut icon" href="assets/icons/favicon.ico" type="image/x-icon">
+    <title>Proyecto | Calculo Edition</title>
 </head>
 <body>
 
-    /*Estructura de contenido de la página, no obligatorio:*/
+    <main class="app-container">
+        <header class="main-header">
+            <h1>REPRODUCT<span>FFT</span> PAPU</h1>
+            <div class="status-indicator">READY</div>
+        </header>
 
-    <!-- Contenedor principal de la aplicación -->
+        <section class="visualizer-container">
+            <canvas id="fft-canvas"></canvas>
+            
+            <div class="canvas-overlay">
+                <span id="freq-display">00.0 Hz</span>
+            </div>
+        </section>
 
-    <!-- Contenedor principal de la aplicación -->
+        <footer class="controls-panel">
+            
+           <div class="btn-group">
+    <button id="btn-play" class="control-btn play">
+        <svg viewBox="0 0 100 100" class="icon-svg">
+            <circle cx="50" cy="50" r="45" class="outer-ring"/>
+            <polygon points="40,30 70,50 40,70" class="shape"/>
+        </svg>
+    </button>
 
-    <!-- Controles del visualizador:
-    Start, Stop, sliders, selector de color, etc.
-    -->
-    
-    <!-- Canvas donde se renderiza el FFT -->
+    <button id="btn-stop" class="control-btn stop">
+        <svg viewBox="0 0 100 100" class="icon-svg">
+            <circle cx="50" cy="50" r="45" class="outer-ring"/>
+            <rect x="35" y="35" width="30" height="30" class="shape"/>
+        </svg>
+    </button>
+</div>
 
-    <!-- Scripts JS principales -->
+            <div class="sliders-group">
+                <div class="input-wrapper">
+                    <label for="gain-slider">VOLUMEN</label>
+                    <input type="range" id="gain-slider" min="0" max="2" step="0.1" value="1">
+                </div>
+                <div class="input-wrapper">
+                    <label for="color-picker">COLORCITO</label>
+                    <input type="color" id="color-picker" value="#ff00ff">
+                </div>
+            </div>
+
+            <div class="track-info">
+                <p id="track-name">No haz subido archivos :(</p>
+                <input type="file" id="audio-upload" hidden>
+                <label for="audio-upload" class="upload-label">Cargando tu audio :D</label>
+            </div>
+
+        </footer>
+    </main>
+
+    <script src="utils/helpers.js" type="module"></script>
+    <script src="visual/fftRender.js" type="module"></script>
+    <script src="index.js" type="module"></script>
 </body>
 </html>
