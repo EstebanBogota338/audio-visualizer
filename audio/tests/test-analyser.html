@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FFTAnalyzer Test</title>
+</head>
+<body>
+
+    <button id="start">Start Mic</button>
+
+    <script type="module">
+
+        console.log("SCRIPT CARGADO");
+
+        import AudioEngine from "../audioEngine.js";
+        import FFTAnalyzer from "../fftAnalyzer.js";  // ← F minúscula
+
+        console.log("IMPORTS OK");
+
+        const audioEngine = new AudioEngine();
+        const fftAnalyzer = new FFTAnalyzer();
+
+        const startBtn = document.getElementById("start");
+        let running = false;
+
+        // =========================
+        // CLICK
+        // =========================
+
+        startBtn.onclick = async () => {
+
+            console.log("CLICK FUNCIONA");
+
+            await audioEngine.start();
+            console.log("ENGINE STARTED");
+
+            // Pasa el analyser del engine al analyzer
+            const analyserNode = audioEngine.getAnalyser();
+            fftAnalyzer.setup(analyserNode);
+            console.log("FFTAnalyzer configurado");
+
+            await audioEngine.initializeMicrophone();
+            console.log("MIC READY");
+
+            if (!running) {
+                running = true;
+                loop();
+            }
+        };
+
+        // =========================
+        // LOOP DEBUG FFT
+        // =========================
+
+        function loop() {
+
+            if (!running) return;
+
+            // RAW FFT
+            const raw = fftAnalyzer.getFrequencyData();
+            console.log("RAW FFT[0]:", raw ? raw[0] : null);
+
+            // BANDAS
+            const bands = fftAnalyzer.getBands();
+            console.log("BANDS:", bands);
+
+            // WAVEFORM
+            const wave = fftAnalyzer.getTimeData();
+            console.log("WAVE[0]:", wave ? wave[0] : null);
+
+            requestAnimationFrame(loop);
+        }
+
+    </script>
+
+</body>
+</html>
