@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FFTRenderer Test (Mock)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            gap: 24px;
+        }
+
+        canvas {
+            width: 800px;
+            height: 300px;
+            display: block;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid #00f5ff;
+            color: #00f5ff;
+            padding: 10px 32px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #00f5ff;
+            color: #0a0a0f;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="visualizer"></canvas>
+    <button id="start">START</button>
+
+    <script type="module">
+
+        console.log("SCRIPT CARGADO");
+
+        import FFTRenderer from "../fftRender.js";
+
+        console.log("IMPORT OK");
+
+        // =========================
+        // MOCK ANALYZER
+        // Simula FFTAnalyzer sin AudioEngine
+        // Usa sin wave para imitar un espectro real
+        // =========================
+
+        const mockAnalyzer = {
+
+            getFrequencyData() {
+
+                const data = new Uint8Array(128);
+
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = Math.max(0,
+                        Math.sin(i * 0.2 + Date.now() * 0.002) * 120 + 120
+                    );
+                }
+
+                return data;
+            }
+        };
+
+        const fftRenderer = new FFTRenderer(
+            document.getElementById("visualizer")
+        );
+
+        const startBtn = document.getElementById("start");
+        let running = false;
+
+        // =========================
+        // CLICK
+        // =========================
+
+        startBtn.onclick = () => {
+
+            if (running) return;
+
+            fftRenderer.start(mockAnalyzer);
+            console.log("RENDERER STARTED (mock)");
+
+            running = true;
+            startBtn.textContent = "RUNNING...";
+        };
+
+    </script>
+
+</body>
+</html>
