@@ -1,6 +1,16 @@
 /*
 ==================================================
-AUDIO ENGINE (FINAL FIXED)
+AUDIO ENGINE (FIXED & STABLE)
+==================================================
+Controla todo el flujo de audio:
+- contexto de audio
+- micrófono
+- archivos de audio
+- nodes (gain, analyser, compressor)
+- conexión de cadena de audio
+
+NO renderiza nada
+NO maneja UI
 ==================================================
 */
 
@@ -8,76 +18,81 @@ class AudioEngine {
 
     constructor() {
 
+        // =========================
+        // AUDIO CORE
+        // =========================
         this.audioContext = null;
-
         this.analyser = null;
         this.gainNode = null;
         this.compressor = null;
 
+        // =========================
+        // SOURCES (ENTRADAS DE AUDIO)
+        // =========================
         this.microphoneSource = null;
         this.fileSource = null;
 
+        // =========================
+        // STREAM MIC
+        // =========================
         this.stream = null;
         this.tracks = [];
 
+        // =========================
+        // DATA BUFFER FFT
+        // =========================
         this.frequencyData = null;
 
+        // estado general del engine
         this.isRunning = false;
-
-        // 🔥 estado simple
-        this.hasMicrophoneConnected = false;
     }
 
     // ==================================================
-    // CONTEXT
+    // INICIALIZACIÓN DEL AUDIO CONTEXT
     // ==================================================
 
-    async initContext() {
+    async start() {
 
+        // crea contexto si no existe
         if (!this.audioContext) {
-
-            this.audioContext =
-                new (window.AudioContext || window.webkitAudioContext)();
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
 
+        // reactiva contexto si está suspendido (browser policy)
         if (this.audioContext.state === "suspended") {
             await this.audioContext.resume();
         }
+
+        // crea nodes base si aún no existen
+        this._setupNodes();
+
+        this.isRunning = true;
     }
 
     // ==================================================
-    // NODES
+    // SETUP DE NODES (FFT / GAIN / COMPRESSOR)
     // ==================================================
 
-    setupNodes() {
+    _setupNodes() {
 
-        // ANALYSER
+        // analyser: encargado de generar el espectro FFT
         if (!this.analyser) {
-
-            this.analyser =
-                this.audioContext.createAnalyser();
-
+            this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 512;
             this.analyser.smoothingTimeConstant = 0.75;
 
-            this.frequencyData =
-                new Uint8Array(this.analyser.frequencyBinCount);
+            this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
         }
 
-        // GAIN
+        // gain node: controla volumen global
         if (!this.gainNode) {
-
-            this.gainNode =
-                this.audioContext.createGain();
-
-            this.gainNode.gain.value = 1.2;
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = 1.0;
         }
 
-        // COMPRESSOR
+        // compressor: estabiliza micro y evita picos fuertes
         if (!this.compressor) {
-
-            this.compressor =
-                this.audioContext.createDynamicsCompressor();
+            this.compressor = this.audioContext.createDynamicsCompressor();
 
             this.compressor.threshold.value = -35;
             this.compressor.knee.value = 30;
@@ -88,85 +103,118 @@ class AudioEngine {
     }
 
     // ==================================================
-    // START
-    // ==================================================
-
-    async start() {
-
-        if (this.isRunning) return;
-
-        await this.initContext();
-
-        this.setupNodes();
-
-        this.isRunning = true;
-    }
-
-    // ==================================================
-    // MICROPHONE
+    // MICROFONO
     // ==================================================
 
     async initializeMicrophone() {
 
-        if (!this.isRunning) {
-            await this.start();
-        }
+        if (!this.isRunning) await this.start();
 
-        // 🔥 limpia conexiones previas
-        this.fileSource?.disconnect?.();
+        // evita conflicto con audio file activo
+        this.stopFile();
 
-        this.stream =
-            await navigator.mediaDevices.getUserMedia({
-
-                audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: true
-                }
-            });
+        // pide permisos de micrófono
+        this.stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: true
+            }
+        });
 
         this.tracks = this.stream.getTracks();
 
+        // crea source desde stream del mic
         this.microphoneSource =
             this.audioContext.createMediaStreamSource(this.stream);
 
-        // 🔥 routing limpio
-        this.microphoneSource
-            .connect(this.compressor)
-            .connect(this.analyser)
-            .connect(this.gainNode)
-            .connect(this.audioContext.destination);
-
-        this.hasMicrophoneConnected = true;
+        // conecta cadena de audio
+        this._connectChain(this.microphoneSource);
     }
 
     // ==================================================
-    // AUDIO FILE
+    // ARCHIVOS DE AUDIO
     // ==================================================
 
     async loadAudioFile(audioElement) {
 
-        if (!this.isRunning) {
-            await this.start();
+        if (!this.isRunning) await this.start();
+
+        // evita conflicto con mic
+        this.stopMic();
+
+        // evita duplicación de MediaElementSource (CRÍTICO)
+        if (this.fileSource) {
+            this.fileSource.disconnect();
+            this.fileSource = null;
         }
 
-        // 🔥 desconecta source previa
-        this.fileSource?.disconnect?.();
-
+        // crea source desde elemento audio HTML
         this.fileSource =
             this.audioContext.createMediaElementSource(audioElement);
 
-        this.fileSource
-            .connect(this.analyser)
-            .connect(this.gainNode)
-            .connect(this.audioContext.destination);
-
-        this.hasMicrophoneConnected = false;
+        // conecta cadena de audio
+        this._connectChain(this.fileSource);
     }
 
     // ==================================================
-    // FFT DATA
+    // CADENA DE AUDIO (ROUTING)
     // ==================================================
+
+    _connectChain(source) {
+
+        source
+            .connect(this.compressor)
+            .connect(this.analyser)
+            .connect(this.gainNode)
+            .connect(this.audioContext.destination);
+    }
+
+    // ==================================================
+    // STOP GENERAL
+    // ==================================================
+
+    stop() {
+        this.stopMic();
+        this.stopFile();
+    }
+
+    // detiene micrófono completamente
+    stopMic() {
+
+        if (this.tracks.length) {
+            this.tracks.forEach(t => t.stop());
+        }
+
+        if (this.stream) {
+            this.stream.getTracks().forEach(t => t.stop());
+        }
+
+        if (this.microphoneSource) {
+            this.microphoneSource.disconnect();
+            this.microphoneSource = null;
+        }
+
+        this.stream = null;
+        this.tracks = [];
+    }
+
+    // detiene archivo de audio
+    stopFile() {
+
+        if (this.fileSource) {
+            this.fileSource.disconnect();
+            this.fileSource = null;
+        }
+    }
+
+    // ==================================================
+    // DATA (FFT OUTPUT)
+    // ==================================================
+
+    getAnalyser() {
+        return this.analyser;
+    }
 
     getFrequencyData() {
 
@@ -175,42 +223,6 @@ class AudioEngine {
         this.analyser.getByteFrequencyData(this.frequencyData);
 
         return this.frequencyData;
-    }
-
-    // ==================================================
-    // GETTERS
-    // ==================================================
-
-    getAnalyser() {
-        return this.analyser;
-    }
-
-    // ==================================================
-    // STOP
-    // ==================================================
-
-    stop() {
-
-        // 🔥 detener tracks del mic
-        this.tracks.forEach(track => track.stop?.());
-
-        // 🔥 desconectar nodos
-        this.microphoneSource?.disconnect?.();
-        this.fileSource?.disconnect?.();
-        this.analyser?.disconnect?.();
-        this.gainNode?.disconnect?.();
-        this.compressor?.disconnect?.();
-
-        // 🔥 limpiar referencias
-        this.microphoneSource = null;
-        this.fileSource = null;
-
-        this.stream = null;
-        this.tracks = [];
-
-        this.hasMicrophoneConnected = false;
-
-        this.isRunning = false;
     }
 }
 

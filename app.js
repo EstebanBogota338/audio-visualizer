@@ -1,152 +1,260 @@
 /*
 ==================================================
-AUDIO VISUALIZER - MAIN APP
+AUDIO VISUALIZER - MAIN APP (FIXED)
 
 Punto central de la aplicación.
 
 Responsabilidades:
 - inicializar módulos
-- conectar audio + FFT + render
-- iniciar/detener visualización
+- conectar audio + FFT + renderer
 - coordinar UI
+- manejar reproducción y stop
 
-Evitar:
-- lógica visual pesada
-- lógica FFT directamente aquí
+NO debe contener:
+- lógica FFT compleja
+- render visual pesado
+- manipulación profunda de audio
 ==================================================
 */
-
-/*
-    Arreglar mini bug stop y play no reanuda
-*/
-
-// ===== IMPORTS =====
 
 import AudioEngine from "./audio/audioEngine.js";
 import FFTAnalyzer from "./audio/fftAnalyzer.js";
 import FFTRenderer from "./visual/fftRender.js";
 
-// ===== INICIALIZACIÓN GENERAL =====
+import {
+    initControls,
+    setStatus,
+    updateFreqDisplay
+} from "./ui/controls.js";
 
-const canvas      = document.getElementById("fft-canvas");
-const btnPlay     = document.getElementById("btn-play");
-const btnStop     = document.getElementById("btn-stop");
-const gainSlider  = document.getElementById("gain-slider");
-const colorPicker = document.getElementById("color-picker");
-const audioUpload = document.getElementById("audio-upload");
-const trackName   = document.getElementById("track-name");
-const statusEl    = document.getElementById("freq-display");
+import {
+    isValidAudioFile
+} from "./utils/helpers.js";
 
-const audio    = new AudioEngine();
-const fft      = new FFTAnalyzer();
+// =========================
+// CORE
+// =========================
+
+// canvas principal del visualizador
+const canvas =
+    document.getElementById("fft-canvas");
+
+// módulos principales
+const audio = new AudioEngine();
+const fft = new FFTAnalyzer();
 const renderer = new FFTRenderer(canvas);
 
+// =========================
+// ESTADO GLOBAL
+// =========================
+
+// evita inicializaciones repetidas
 let engineReady = false;
+
+// elemento HTMLAudio usado para archivos
 let audioElement = null;
 
-// ===== INICIALIZACIÓN DEL ENGINE =====
+// flag simple para controlar stream activo
+let currentStream = null;
+
+// =========================
+// ENGINE INIT
+// =========================
+
+/*
+==================================================
+INICIALIZA EL SISTEMA COMPLETO
+
+- inicia AudioContext
+- conecta analyser
+- inicia renderer
+==================================================
+*/
 
 async function initEngine() {
 
+    // evita reinicialización innecesaria
     if (engineReady) return;
 
+    // inicia engine de audio
     await audio.start();
 
+    // conecta analyser al FFT wrapper
     fft.setup(audio.getAnalyser());
 
+    // inicia render loop
     renderer.start(fft);
 
     engineReady = true;
 
-    console.log("Sistema iniciado.");
+    setStatus("READY");
 }
 
-// ===== EVENTOS PRINCIPALES =====
+// =========================
+// MICROPHONE
+// =========================
 
-// ----- PLAY (mic) -----
+/*
+==================================================
+INICIA MICRÓFONO
 
-btnPlay.onclick = async () => {
+- evita múltiples streams
+- conecta mic al audio graph
+==================================================
+*/
+
+async function startMic() {
 
     await initEngine();
 
-    if (!audio.hasMicrophoneConnected) {
-        await audio.initializeMicrophone();
+    // evita duplicación de streams
+    if (currentStream) {
+        audio.stop();
     }
 
-    updateStatus("MIC ON");
-};
+    // inicializa micrófono
+    await audio.initializeMicrophone();
 
-// ----- STOP -----
+    currentStream = true;
 
-btnStop.onclick = () => {
+    setStatus("MIC ON");
+}
 
+// =========================
+// STOP TOTAL
+// =========================
+
+/*
+==================================================
+DETENER TODO EL SISTEMA
+
+- micrófono
+- archivo
+- renderer
+- limpieza general
+==================================================
+*/
+
+function stopAll() {
+
+    // detiene audio graph
     audio.stop();
+
+    // detiene render loop
     renderer.stop();
 
-    // detener audio file si hay uno activo
+    // cleanup del archivo actual
     if (audioElement) {
+
         audioElement.pause();
-        audioElement.currentTime = 0;
+
+        audioElement.src = "";
+
+        audioElement.load();
+
+        audioElement = null;
     }
 
+    // reinicia flag de stream
+    currentStream = null;
+
     engineReady = false;
-    updateStatus("STOPPED");
-};
 
-// ----- UPLOAD ARCHIVO -----
+    setStatus("STOPPED");
+}
 
-audioUpload.onchange = async (e) => {
+// =========================
+// LOAD AUDIO FILE
+// =========================
 
-    const file = e.target.files[0];
-    if (!file) return;
+/*
+==================================================
+CARGA Y REPRODUCE UN ARCHIVO
+
+- valida formato
+- limpia audio anterior
+- conecta nuevo source
+==================================================
+*/
+
+async function loadFile(file) {
+
+    // validación básica
+    if (!isValidAudioFile(file)) {
+
+        setStatus("INVALID FILE");
+
+        return;
+    }
 
     await initEngine();
 
-    // Si hay un elemento previo lo limpiamos
+    // cleanup del archivo anterior
     if (audioElement) {
+
         audioElement.pause();
+
         audioElement.src = "";
+
+        audioElement.load();
     }
 
+    // crea nuevo elemento audio
     audioElement = new Audio();
-    audioElement.src = URL.createObjectURL(file);
 
+    audioElement.src =
+        URL.createObjectURL(file);
+
+    // conecta al audio engine
     await audio.loadAudioFile(audioElement);
 
-    audioElement.play();
+    // inicia reproducción
+    await audioElement.play();
 
-    trackName.textContent = file.name;
-
-    updateStatus("PLAYING");
-
-    console.log("Archivo cargado:", file.name);
-};
-
-// ----- GAIN SLIDER -----
-
-gainSlider.oninput = () => {
-
-    const value = parseFloat(gainSlider.value);
-
-    if (audio.gainNode) {
-        audio.gainNode.gain.value = value;
-    }
-};
-
-// ----- COLOR PICKER -----
-
-colorPicker.oninput = () => {
-
-    const color = colorPicker.value;
-
-    // Aplica el color a las 3 bandas
-    renderer.config.colors.bass   = color;
-    renderer.config.colors.mid    = color;
-    renderer.config.colors.treble = color;
-};
-
-// ===== UTILIDADES UI =====
-
-function updateStatus(text) {
-    if (statusEl) statusEl.textContent = text;
+    setStatus("PLAYING");
 }
+
+// =========================
+// UI BINDING
+// =========================
+
+/*
+==================================================
+CONECTA UI CON LA APP
+
+Cada callback conecta:
+- botones
+- sliders
+- upload
+- color picker
+==================================================
+*/
+
+initControls({
+
+    // PLAY
+    onPlay: startMic,
+
+    // STOP
+    onStop: stopAll,
+
+    // VOLUMEN
+    onGain: (value) => {
+
+        if (audio.gainNode) {
+
+            audio.gainNode.gain.value = value;
+        }
+    },
+
+    // COLOR DEL VISUALIZADOR
+    onColor: (color) => {
+
+        renderer.config.colors.bass =
+        renderer.config.colors.mid =
+        renderer.config.colors.treble = color;
+    },
+
+    // AUDIO FILE
+    onUpload: loadFile
+});
