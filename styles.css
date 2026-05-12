@@ -27,24 +27,263 @@ Evitar:
 }
 
 /*Separadores útiles, no obligatorios:*/
-
-
 /* ===== RESET / BASE ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  /* Fondo con patrón de rejilla sutil */
+  background-image: 
+    linear-gradient(rgba(0, 255, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 238, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
 
 /* ===== LAYOUT GENERAL ===== */
+.app-container {
+  width: 90%;
+  max-width: 1200px;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(0, 255, 238, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 255, 238, 0.1);
+  padding: 20px;
+}
 
 /* ===== HEADER ===== */
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
 
-/* ===== CONTROLES ===== */
+.main-header h1 {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  color: var(--primary-color);
+  text-shadow: 0 0 10px var(--primary-color);
+}
 
-/* ===== BOTONES ===== */
+.main-header span {
+  color: var(--secondary-color);
+  text-shadow: 0 0 10px var(--secondary-color);
+}
 
-/* ===== SLIDERS ===== */
+.status-indicator {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: 4px;
+  animation: blink 2s infinite;
+}
 
 /* ===== CANVAS VISUALIZER ===== */
+.visualizer-container {
+  flex-grow: 1;
+  position: relative;
+  background: #000;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
 
-/* ===== EFECTOS NEÓN / GLOW ===== */
+#fft-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
+.canvas-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: monospace;
+  color: var(--primary-color);
+  opacity: 0.7;
+}
+
+/* ===== CONTROLES / PANEL INFERIOR ===== */
+.controls-panel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 30px;
+  align-items: center;
+  padding: 15px;
+  background: rgba(30, 30, 30, 0.5);
+  border-radius: 4px;
+}
+
+/* ===== BOTONES ===== */
+/* Estilo base del botón (transparente) */
+.control-btn {
+    width: 60px;
+    height: 60px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.icon-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* El anillo exterior cian */
+.outer-ring {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 5px var(--primary-color));
+}
+
+/* Colores de las formas internas */
+.play .shape {
+    fill: #44ff44; /* Verde neón */
+    filter: drop-shadow(0 0 8px #44ff44);
+}
+
+.stop .shape {
+    fill: #ff4444; /* Rojo neón */
+    filter: drop-shadow(0 0 8px #ff4444);
+}
+
+/* Efecto al tocar/click */
+.control-btn:active {
+    transform: scale(0.9);
+    filter: brightness(1.5);
+}
+.control-btn {
+    transition: all 0.3s ease; 
+}
+
+/* Cuando el mouse está encima del botón se pone medio transparente*/
+.control-btn:hover {
+    opacity: 0.5; 
+    cursor: pointer;
+    transform: scale(1.05); 
+}
+
+/* ===== SLIDERS (Tunning para cromo/neón) ===== */
+.sliders-group {
+  display: flex;
+  gap: 20px;
+}
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.input-wrapper label {
+  font-size: 0.6rem;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+input[type="range"] {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  height: 4px;
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--secondary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--secondary-color);
+}
+
+/* ===== TRACK INFO & UPLOAD ===== */
+.track-info {
+  text-align: right;
+}
+
+#track-name {
+  font-size: 0.7rem;
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.upload-label {
+  font-size: 0.8rem;
+  color: var(--bg-color);
+  background: var(--primary-color);
+  padding: 5px 15px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.upload-label:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 10px var(--primary-color);
+}
+
+/* ===== ANIMACIONES ===== */
+/* esta animacion se utiliza para que el boton vibre un poquito cuando el mouse este encima*/
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+/* Aplícalo cuando pases el mouse por los botones: */
+.control-btn:hover {
+  animation: glitch 0.3s linear infinite;
+}
+@keyframes neon-pulse {
+  0%, 100% {
+    text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color);
+    box-shadow: 0 0 5px var(--primary-color);
+  }
+  50% {
+    text-shadow: 0 0 20px var(--primary-color), 0 0 40px var(--primary-color);
+    box-shadow: 0 0 20px var(--primary-color);
+    filter: brightness(1.5);
+  }
+}
+
+/* Aplícalo así: */
+.status-indicator {
+  animation: neon-pulse 1.5s infinite ease-in-out;
+}
 /* ===== RESPONSIVE ===== */
-
-
+@media (max-width: 768px) {
+  .controls-panel {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .btn-group, .sliders-group, .track-info {
+    justify-content: center;
+    text-align: center;
+  }
+}

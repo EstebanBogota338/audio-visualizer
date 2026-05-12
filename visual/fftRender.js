@@ -1,3 +1,15 @@
+/*
+==================================================
+FFT RENDERER (FINAL)
+
+Renderiza:
+- barras FFT
+- glow/neón
+- detección simple mic vs file
+- smoothing estable
+==================================================
+*/
+
 class FFTRenderer {
 
     constructor(canvas) {
@@ -33,7 +45,6 @@ class FFTRenderer {
 
         this.smoothed = new Float32Array(this.config.barCount);
 
-        // 🔥 detección dinámica de fuente
         this.energyHistory = [];
         this.isMic = false;
 
@@ -50,6 +61,7 @@ class FFTRenderer {
     }
 
     stop() {
+
         this.isRunning = false;
         cancelAnimationFrame(this.id);
     }
@@ -65,8 +77,8 @@ class FFTRenderer {
 
     detectSource(avgEnergy) {
 
-        // 🔥 historial corto para estabilidad
         this.energyHistory.push(avgEnergy);
+
         if (this.energyHistory.length > 30) {
             this.energyHistory.shift();
         }
@@ -75,7 +87,6 @@ class FFTRenderer {
             this.energyHistory.reduce((a, b) => a + b, 0) /
             this.energyHistory.length;
 
-        // 🎤 mic suele tener energía baja/inestable
         this.isMic = mean < 0.15;
     }
 
@@ -110,14 +121,13 @@ class FFTRenderer {
 
             energySum += value;
 
-            // smoothing base
             this.smoothed[i] =
                 this.smoothed[i] * this.config.smoothing +
                 value * (1 - this.config.smoothing);
 
             let v = this.smoothed[i];
 
-            // 🔥 AJUSTE AUTOMÁTICO MIC vs FILE
+            // ajuste mic vs file
             if (this.isMic) {
                 v = Math.pow(v, 0.6) * 2.8;
             }
@@ -141,7 +151,6 @@ class FFTRenderer {
 
         ctx.shadowBlur = 0;
 
-        // 🔥 actualizar tipo de fuente
         this.detectSource(energySum / count);
     }
 
