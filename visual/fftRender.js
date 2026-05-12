@@ -1,12 +1,16 @@
 /*
 ==================================================
-FFT RENDERER (FINAL)
+FFT RENDERER (PERCEPTUAL FIXED)
 
-Renderiza:
-- barras FFT
-- glow/neón
-- detección simple mic vs file
-- smoothing estable
+Responsabilidad:
+- visualización
+- smoothing visual
+- escalado perceptual
+- balance de energía
+
+NO debe:
+- tocar WebAudio API
+- calcular FFT
 ==================================================
 */
 
@@ -61,7 +65,6 @@ class FFTRenderer {
     }
 
     stop() {
-
         this.isRunning = false;
         cancelAnimationFrame(this.id);
     }
@@ -74,6 +77,10 @@ class FFTRenderer {
 
         this.id = requestAnimationFrame(() => this.loop());
     }
+
+    // =========================
+    // MIC DETECTION SIMPLE
+    // =========================
 
     detectSource(avgEnergy) {
 
@@ -89,6 +96,10 @@ class FFTRenderer {
 
         this.isMic = mean < 0.15;
     }
+
+    // =========================
+    // DRAW
+    // =========================
 
     draw() {
 
@@ -117,24 +128,35 @@ class FFTRenderer {
                 Math.pow(t, 1.6) * (data.length - 1)
             );
 
+            // =========================
+            // RAW → perceptual shaping
+            // =========================
+
             let value = (data[index] ?? 0) / 255;
+
+            // 🔥 compresión log perceptual (CLAVE)
+            value = Math.log10(1 + value * 9) / Math.log10(10);
 
             energySum += value;
 
+            // smoothing
             this.smoothed[i] =
                 this.smoothed[i] * this.config.smoothing +
                 value * (1 - this.config.smoothing);
 
             let v = this.smoothed[i];
 
-            // ajuste mic vs file
+            // 🔥 ajuste mic
             if (this.isMic) {
-                v = Math.pow(v, 0.6) * 2.8;
+                v = Math.pow(v, 0.6) * 2.2;
             }
 
-            v = Math.min(1, v);
+            // 🔥 shaping final visual (importante)
+            v = Math.pow(v, 1.25);
 
-            const h = v * H * 0.4;
+            v = Math.min(1, Math.max(0, v));
+
+            const h = v * H * 0.45;
 
             const x = i * (barW + this.config.barGap);
             const y = H - h;

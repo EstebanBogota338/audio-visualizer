@@ -1,3 +1,19 @@
+/*
+==================================================
+FFT ANALYZER (CLEAN)
+
+Responsabilidad:
+- Obtener datos crudos del WebAudio API
+- Proveer FFT + waveform
+- Calcular bandas básicas (opcional, sin estética)
+
+NO debe contener:
+- smoothing visual
+- gain visual
+- escalado perceptual
+==================================================
+*/
+
 class FFTAnalyzer {
 
     constructor() {
@@ -11,10 +27,9 @@ class FFTAnalyzer {
         this.maxDecibels = -10;
 
         this.frequencyData = null;
-
         this.timeData = null;
 
-        // 🔥 FIX: bandas realistas
+        // bandas en bins (NO visuales, solo lectura)
         this.bands = {
             bass:   { start: 1,  end: 8 },
             mid:    { start: 8,  end: 32 },
@@ -38,6 +53,10 @@ class FFTAnalyzer {
             new Uint8Array(this.analyser.fftSize);
     }
 
+    // =========================
+    // RAW FFT
+    // =========================
+
     getFrequencyData() {
 
         if (!this.analyser) return null;
@@ -55,6 +74,10 @@ class FFTAnalyzer {
 
         return this.timeData;
     }
+
+    // =========================
+    // BANDS (solo promedio crudo)
+    // =========================
 
     _bandAverage(data, band) {
 
